@@ -1,5 +1,5 @@
 """
-ARIA — Cybercrime Reporting Chatbot
+CS3299:Capstone_Project — Cybercrime Reporting Chatbot
 Streamlit frontend connecting to FastAPI backend (main.py).
 
 The LLM reads the full conversation history and decides what to ask next —
@@ -16,6 +16,8 @@ import json
 import time
 from groq import Groq
 from typing import Optional
+from validators import FieldValidator
+from report_templates import generate_formatted_report
 
 # ── Config ────────────────────────────────────────────────────────────────────
 API_BASE = "http://localhost:8000"
@@ -77,11 +79,11 @@ def get_groq_client() -> Optional[Groq]:
 
 def llm_next_turn(history: list, phase: str,
                   crime_type: Optional[str], filled: dict,
-                  schema_fields: list) -> dict:
+                  schema_fields: list, validation_errors: dict = None) -> dict:
     """
     Send the full conversation to Groq.
     Returns:
-        message        — what ARIA says next
+        message        — what CS3299:Capstone_Project says next
         intent_locked  — crime type string once confident, else None
         extracted      — {field: value} pulled from latest user message
         complete       — True when all critical fields are collected
@@ -90,30 +92,33 @@ def llm_next_turn(history: list, phase: str,
     client = get_groq_client()
     if not client:
         return {
-            "message": "⚠️ Please enter your Groq API key in the sidebar to continue.",
+            "message": "⚠️ System Configuration Required: Groq API Key must be configured in system settings.",
             "intent_locked": None, "extracted": {}, "complete": False, "confidence": 0
         }
 
     missing = [f for f in schema_fields if f not in filled]
+    validation_errors = validation_errors or {}
 
     if phase == "probing":
-        system = """You are ARIA, a professional and empathetic cybercrime reporting AI officer.
+        system = """You are a cybercrime reporting system assisting police officers in documenting incidents.
 
-TASK — PROBING PHASE:
-Read the full conversation carefully. The user is describing a cybercrime incident.
-Your job is to ask ONE smart, specific follow-up question to learn more.
+TASK — INCIDENT CLASSIFICATION PHASE:
+Analyze the provided incident description to classify the cybercrime type.
+Ask ONE specific follow-up question to gather critical information and confirm classification.
 
 Rules:
-- Read everything already said. Do NOT repeat anything already answered.
-- Ask only ONE question. Make it specific to what the user just told you.
-- Be empathetic and professional, like a detective — not a form-filler.
-- If you are ≥80% confident about the crime type, set intent_locked to the crime type.
+- Maintain formal, professional tone throughout
+- Do NOT use casual language, pleasantries, or personal remarks
+- Ask only ONE clarifying question per response
+- Question must be specific and relevant to incident details
+- If confidence in crime type classification is ≥80%, lock the classification
+- All questions must be direct and information-focused
 
 Crime types: phishing, ransomware, data_breach, identity_theft, fraud, malware, ddos, hacking, extortion, spam
 
 Respond ONLY with this exact JSON (no extra text, no markdown):
 {
-  "message": "<your specific follow-up question or empathetic acknowledgement + question>",
+  "message": "<direct, formal clarifying question>",
   "intent_locked": null,
   "confidence": 0.0,
   "extracted": {}
@@ -121,30 +126,40 @@ Respond ONLY with this exact JSON (no extra text, no markdown):
     else:
         missing_str = ", ".join(missing) if missing else "none — all done!"
         filled_json = json.dumps(filled, indent=2)
-        system = f"""You are ARIA, a professional cybercrime reporting AI officer.
+        
+        # Build validation errors message
+        validation_msg = ""
+        if validation_errors:
+            validation_msg = "\n\nRECENT VALIDATION FAILURES:\n"
+            for field, error in validation_errors.items():
+                validation_msg += f"- {field}: {error}\n"
+            validation_msg += "\nIMPORTANT: Do NOT accept values that failed validation. Ask the user to provide the correct format using the validation rules above."
+        
+        system = f"""You are a cybercrime report processing system assisting police officers.
 
-TASK — SLOT FILLING PHASE:
-Crime type is locked: {crime_type}
+TASK — INCIDENT INFORMATION COLLECTION:
+Crime type classification: {crime_type}
 
-Already collected:
+Information already recorded:
 {filled_json}
 
-Still missing: {missing_str}
+Information still required: {missing_str}
+{validation_msg}
 
-Read the ENTIRE conversation carefully.
-1. From the user's LATEST message, silently extract any values for missing fields.
-2. Ask ONE natural conversational question to get the next most important missing field.
-   — Be specific, empathetic, and acknowledge what they just said.
-   — Do NOT ask about fields already filled.
-   — Do NOT list multiple questions.
-3. If missing = "none — all done!" or all critical fields are filled, set complete=true
-   and write a warm closing message instead of a question.
+INSTRUCTIONS:
+1. Extract any values from the user's latest message that match the required fields
+2. Ask ONE specific question to obtain the next critical missing information
+   — Questions must be direct and formal
+   — Do NOT ask about fields already recorded
+   — Do NOT include pleasantries or casual remarks
+3. REJECT any values that failed validation. Request the correct format explicitly
+4. If all required information is collected, set complete=true and provide a formal completion notice
 
-Respond ONLY with this exact JSON (no extra text, no markdown):
+Response format (JSON only, no additional text):
 {{
-  "message": "<specific question based on conversation, or closing message>",
+  "message": "<direct question or completion notice>",
   "intent_locked": "{crime_type}",
-  "extracted": {{"<field_name>": "<value from user's latest message>"}},
+  "extracted": {{"<field_name>": "<extracted value>"}},
   "complete": false,
   "confidence": 0.9
 }}"""
@@ -163,7 +178,7 @@ Respond ONLY with this exact JSON (no extra text, no markdown):
         clean = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(clean)
         return {
-            "message":       parsed.get("message", "Could you share more details?"),
+            "message":       parsed.get("message", "Provide additional incident details."),
             "intent_locked": parsed.get("intent_locked"),
             "extracted":     parsed.get("extracted", {}),
             "complete":      bool(parsed.get("complete", False)),
@@ -177,14 +192,14 @@ Respond ONLY with this exact JSON (no extra text, no markdown):
             m = re.search(r'"message"\s*:\s*"([^"]+)"', raw)
             msg = m.group(1) if m else raw[:300]
         except Exception:
-            msg = "Could you describe what happened in a bit more detail?"
+            msg = "Provide detailed information about the incident."
         return {
             "message": msg,
             "intent_locked": None, "extracted": {}, "complete": False, "confidence": 0.5
         }
     except Exception as e:
         return {
-            "message": f"Sorry, I had a technical issue ({e}). Could you continue?",
+            "message": f"System error: {e}. Please retry.",
             "intent_locked": None, "extracted": {}, "complete": False, "confidence": 0.5
         }
 
@@ -209,10 +224,24 @@ def check_backend() -> bool:
     r = api_get("/health")
     return bool(r and r.get("status") == "healthy")
 
+def backend_start_report(description: str) -> dict:
+    """Step 1: Start report - Initial crime classification"""
+    return api_post("/api/v1/start-report", {"description": description}) or {}
+
 def backend_classify(description: str) -> dict:
+    """Step 1b: Full 4-stage classification with Self-RAG and Expert Analyzer"""
     return api_post("/api/v1/classify-crime", {"description": description}) or {}
 
+def backend_get_questions(description: str, crime_type: str, case_id: str) -> dict:
+    """Step 2: Get crime-type-specific questions from backend"""
+    return api_post("/api/v1/get-questions", {
+        "description": description,
+        "crime_type": crime_type,
+        "case_id": case_id,
+    }) or {"questions": []}
+
 def backend_report(description: str, crime_type: str, case_id: str, answers: dict) -> dict:
+    """Step 3-6: Generate report with correlation analysis and case registration"""
     return api_post("/api/v1/submit-report", {
         "user_input": description,
         "crime_type": crime_type,
@@ -225,18 +254,24 @@ def backend_report(description: str, crime_type: str, case_id: str, answers: dic
 
 def init_state():
     defaults = {
-        "phase":           "idle",   # idle | probing | filling | done
-        "messages":        [],       # {role, content, meta} — full history
-        "description":     "",       # cumulative user text
-        "case_id":         None,
-        "crime_type":      None,
-        "confidence":      0.0,
-        "pipeline_result": None,
-        "filled_schema":   {},       # field → value
-        "answers":         {},       # for /submit-report
-        "report":          None,
-        "backend_ok":      False,
-        "groq_key":        "",
+        "phase":              "idle",   # idle | probing | filling | done
+        "messages":           [],       # {role, content, meta} — full history
+        "description":        "",       # cumulative user text
+        "case_id":            None,
+        "crime_type":         None,
+        "confidence":         0.0,
+        
+        # Pipeline results from backend
+        "start_report_result":None,    # Step 1: Initial classification
+        "pipeline_result":    None,    # Step 1b: Full 4-stage pipeline
+        "questions":          [],      # Step 2: Backend-provided questions
+        
+        "filled_schema":      {},       # field → value
+        "answers":            {},       # for /submit-report
+        "report":             None,     # Step 3-6: Final report with correlation
+        "backend_ok":         False,
+        "groq_key":           "",
+        "validation_errors":  {},       # field → error message (cleared after each turn)
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -259,6 +294,13 @@ def reset():
 # ── Core turn handler ─────────────────────────────────────────────────────────
 
 def handle_user_turn(user_text: str):
+    """
+    Refactored to follow the complete 6-step backend workflow:
+    1. Start Report (initial classification)
+    2. Get Questions (from backend)
+    3. Fill Schema
+    4. Submit Report (generate report + correlation analysis)
+    """
     st.session_state.description += " " + user_text
     add_message("user", user_text)
 
@@ -272,22 +314,42 @@ def handle_user_turn(user_text: str):
                for m in st.session_state.messages]
 
     turn = llm_next_turn(
-        history       = history,
-        phase         = "probing" if phase in ("idle", "probing") else "filling",
-        crime_type    = crime_type,
-        filled        = filled,
-        schema_fields = schema_fields,
+        history            = history,
+        phase              = "probing" if phase in ("idle", "probing") else "filling",
+        crime_type         = crime_type,
+        filled             = filled,
+        schema_fields      = schema_fields,
+        validation_errors  = st.session_state.validation_errors,
     )
 
-    # ── Persist extracted fields ───────────────────────────────────────────────
+    # ── Validate and persist extracted fields ──────────────────────────────────
+    validation_errors = {}  # Track new validation errors for this turn
+    
     if turn["extracted"]:
         for field, value in turn["extracted"].items():
-            # Accept any field that belongs to the locked schema
             if not schema_fields or field in schema_fields:
-                st.session_state.filled_schema[field] = value
-        st.session_state.answers.update(turn["extracted"])
+                # Validate the field
+                is_valid, error_msg = FieldValidator.validate_field(field, value)
+                
+                if is_valid:
+                    # Field is valid — store it
+                    st.session_state.filled_schema[field] = value
+                    st.session_state.answers[field] = value
+                else:
+                    # Field is invalid — track the error and don't store it
+                    validation_errors[field] = error_msg
+                    
+                    # Add a note to the conversation about the validation error
+                    error_note = f"⚠️ Invalid {field.replace('_', ' ')}: {error_msg}"
+                    st.session_state.messages[-1] = {
+                        **st.session_state.messages[-1],
+                        "meta": {**st.session_state.messages[-1].get("meta", {}), "validation_error": error_note}
+                    }
+    
+    # Store validation errors for next turn (so LLM knows what failed)
+    st.session_state.validation_errors = validation_errors
 
-    # ── Intent lock ────────────────────────────────────────────────────────────
+    # ── Intent lock — STEP 1: Start Report & Full Classification ──────────────
     locked = turn.get("intent_locked")
     if locked and locked != "null" and not crime_type:
         st.session_state.crime_type = locked
@@ -295,19 +357,24 @@ def handle_user_turn(user_text: str):
         st.session_state.case_id    = f"case_{int(time.time())}"
         st.session_state.phase      = "filling"
 
-        # Fire 4-stage pipeline for sidebar details (non-blocking in spirit)
-        if st.session_state.backend_ok:
-            result = backend_classify(st.session_state.description.strip())
-            st.session_state.pipeline_result = result
-
         add_message("assistant", turn["message"], meta={
             "intent_locked": locked,
             "confidence":    turn["confidence"],
             "extracted":     turn["extracted"],
         })
+
+        # BACKEND STEP 1: Start report with initial classification
+        if st.session_state.backend_ok:
+            with st.spinner("🔍 Classifying incident..."):
+                start_result = backend_start_report(st.session_state.description.strip())
+                st.session_state.start_report_result = start_result
+                
+                # BACKEND STEP 1b: Run full 4-stage pipeline with Self-RAG & Expert Analyzer
+                classify_result = backend_classify(st.session_state.description.strip())
+                st.session_state.pipeline_result = classify_result
         return
 
-    # ── Completion ─────────────────────────────────────────────────────────────
+    # ── Completion — STEP 3-6: Submit Report ───────────────────────────────────
     schema_fields = CRIME_SCHEMAS.get(st.session_state.crime_type, [])
     all_filled = schema_fields and all(
         f in st.session_state.filled_schema for f in schema_fields
@@ -327,6 +394,9 @@ def handle_user_turn(user_text: str):
 
     add_message("assistant", turn["message"],
                 meta={"extracted": turn["extracted"]})
+    
+    # Clear validation errors after handling (fresh state for next turn)
+    st.session_state.validation_errors = {}
 
 
 def _generate_report():
@@ -348,8 +418,8 @@ def _generate_report():
 
 def render_sidebar():
     with st.sidebar:
-        st.markdown("### 🛡️ ARIA")
-        st.caption("Cybercrime Reporting AI")
+        st.markdown("### 🛡️ SYSTEM INFORMATION")
+        st.caption("Cybercrime Report Generation and Filing")
 
         if not _get_secret("GROQ_API_KEY"):
             st.text_input(
@@ -381,6 +451,13 @@ def render_sidebar():
             st.markdown(f"**Confidence:** {int(st.session_state.confidence * 100)}%")
             st.progress(min(st.session_state.confidence, 1.0))
 
+        # Display validation errors if any
+        if st.session_state.validation_errors:
+            st.divider()
+            st.warning("⚠️ **Validation Issues**", icon="⚠️")
+            for field, error in st.session_state.validation_errors.items():
+                st.caption(f"**{field}**: {error}")
+
         ct = st.session_state.crime_type
         if ct:
             st.markdown(f"**Crime:** {CRIME_EMOJI.get(ct,'')} {ct.replace('_',' ').title()}")
@@ -395,8 +472,10 @@ def render_sidebar():
 
         if st.session_state.pipeline_result:
             st.divider()
+            pr = st.session_state.pipeline_result
+            
+            # Display 4-stage pipeline
             with st.expander("🔬 4-Stage Pipeline"):
-                pr = st.session_state.pipeline_result
                 for sid, skey, lbl in [
                     (1,"stage1_semantic_router","Semantic Router"),
                     (2,"stage2_hierarchical_classifier","Hierarchical"),
@@ -414,9 +493,32 @@ def render_sidebar():
                             st.caption(f"`{s.get('strongest_match')}` {s.get('pattern_strength',0):.2f}")
                         elif sid == 4:
                             st.caption(f"supported={s.get('rag_supported')} conf={s.get('rag_confidence',0):.2f}")
+            
+            # Display Self-RAG Validation
+            self_rag = pr.get("self_rag_validation", {})
+            if self_rag:
+                with st.expander("✅ Self-RAG Validation"):
+                    passed = self_rag.get("checkpoints_passed", 0)
+                    total = self_rag.get("total_checkpoints", 5)
+                    st.progress(passed / total if total > 0 else 0)
+                    st.caption(f"Checkpoints: {passed}/{total}")
+                    if self_rag.get("checkpoint_details"):
+                        for detail in self_rag["checkpoint_details"]:
+                            st.caption(f"• {detail}")
+                    if self_rag.get("adjusted_confidence"):
+                        st.metric("Adjusted Confidence", f"{self_rag['adjusted_confidence']:.1%}")
+                    if self_rag.get("recommendation"):
+                        st.info(f"Recommendation: {self_rag['recommendation']}")
+            
+            # Display Expert Flagging
+            expert = pr.get("expert_flagging", {})
+            if expert and expert.get("flagged"):
+                with st.expander("⚠️ Expert Flagging"):
+                    st.warning(f"Flagged: {expert.get('flag_reason')}")
+                    st.caption(f"Severity: {expert.get('severity')}")
 
         st.divider()
-        if st.button("↺ New report", use_container_width=True):
+        if st.button("🔄 START NEW CASE", use_container_width=True):
             reset()
             st.rerun()
 
@@ -429,6 +531,10 @@ def render_chat():
             st.markdown(msg["content"])
 
             meta = msg.get("meta", {})
+
+            # Display validation error if present
+            if meta.get("validation_error"):
+                st.warning(meta["validation_error"], icon="⚠️")
 
             if meta.get("intent_locked"):
                 ct   = meta["intent_locked"]
@@ -461,7 +567,7 @@ def render_report():
         return
 
     st.divider()
-    st.markdown("## 📋 Official Incident Report")
+    st.markdown("## 📋 Incident Report")
 
     ct = st.session_state.crime_type or "unknown"
     c1, c2, c3 = st.columns(3)
@@ -470,39 +576,151 @@ def render_report():
     schema = CRIME_SCHEMAS.get(ct, [])
     c3.metric("Fields Filled", f"{len(st.session_state.filled_schema)}/{len(schema)}")
 
-    with st.expander("📄 Full Report JSON", expanded=True):
-        st.json(report.get("report_data", st.session_state.filled_schema))
+    tabs = st.tabs(["📄 Formatted Report", "🔗 Correlation", "🔬 Pipeline", "📦 Raw Data"])
+    
+    with tabs[0]:
+        st.markdown("### Official Complaint Report")
+        
+        # Prepare data for template
+        report_data = {
+            **st.session_state.filled_schema,
+            "case_id": st.session_state.case_id,
+            "report_date": st.session_state.messages[-1].get("meta", {}).get("timestamp", "N/A") if st.session_state.messages else "N/A",
+        }
+        
+        # Generate formatted report using crime-specific template
+        formatted_report = generate_formatted_report(ct, report_data)
+        
+        # Display the formatted report
+        st.markdown(formatted_report)
+        
+        # Download button for formatted report
+        st.download_button(
+            "⬇️ Download Formatted Report",
+            data=formatted_report,
+            file_name=f"Complaint_Report_{st.session_state.case_id}_{ct}.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
 
-    with st.expander("🗂️ Collected Schema Values"):
-        st.json(st.session_state.filled_schema)
+    # === CORRELATION ANALYSIS ===
+    with tabs[1]:
+        st.markdown("### Correlation Analysis")
+        corr = report.get("correlation_analysis")
+        if corr and isinstance(corr, dict):
+            status = corr.get("status", "no_correlation")
+            if status != "no_correlation":
+                score = corr.get("correlation_score", 0)
+                st.metric("Correlation Score", f"{score:.2f}")
+                
+                if corr.get("related_cases"):
+                    st.warning("⚠️ Related Cases Found:")
+                    for case in corr["related_cases"]:
+                        st.write(f"• Case {case.get('case_id')}: {case.get('description')[:80]}...")
+                
+                if corr.get("found_contacts"):
+                    st.info("🔗 Known Contacts Matched:")
+                    for contact in corr["found_contacts"]:
+                        st.write(f"• **{contact.get('contact_type')}**: {contact.get('contact_value')}")
+                
+                if corr.get("pattern_matches"):
+                    st.success("📊 Pattern Matches:")
+                    for pattern in corr["pattern_matches"]:
+                        st.write(f"• Pattern: {pattern.get('pattern_type')} (confidence: {pattern.get('confidence', 0):.2f})")
+                
+                if corr.get("recommendation"):
+                    st.info(f"**Recommendation**: {corr['recommendation']}")
+            else:
+                st.info("✅ No correlations found with existing cases")
+        else:
+            st.info("📊 Correlation analysis pending or not available")
 
-    corr = report.get("correlation_analysis")
-    if corr and isinstance(corr, dict) and corr.get("status") not in (None, "no_correlation"):
-        with st.expander("🔗 Correlation Analysis"):
-            st.markdown(f"**Status:** {corr.get('status')}  \n**Score:** {corr.get('correlation_score',0):.2f}")
-            if corr.get("recommendation"):
-                st.info(corr["recommendation"])
+    # === PIPELINE DETAILS ===
+    with tabs[2]:
+        st.markdown("### Classification Pipeline")
+        if st.session_state.pipeline_result:
+            pr = st.session_state.pipeline_result
+            
+            # 4-Stage results
+            st.markdown("**4-Stage Classification Pipeline**")
+            for sid, skey, lbl, color in [
+                (1,"stage1_semantic_router","Semantic Router","🟢"),
+                (2,"stage2_hierarchical_classifier","Hierarchical Classifier","🔵"),
+                (3,"stage3_pattern_matcher","Pattern Matcher","🟡"),
+                (4,"stage4_rag_retriever","RAG Retriever","🟣"),
+            ]:
+                s = pr.get("stages", {}).get(skey, {})
+                if s:
+                    st.markdown(f"##### {color} Stage {sid}: {lbl}")
+                    st.json(s)
+            
+            # Self-RAG Validation
+            if pr.get("self_rag_validation"):
+                st.markdown("**Self-RAG Validation**")
+                st.json(pr["self_rag_validation"])
+            
+            # Expert Flagging
+            if pr.get("expert_flagging"):
+                st.markdown("**Expert Analyzer**")
+                st.json(pr["expert_flagging"])
+        else:
+            st.info("Pipeline results not yet available")
 
-    st.download_button(
-        "⬇️ Download Report JSON",
-        data=json.dumps({
-            "case_id":       st.session_state.case_id,
-            "crime_type":    ct,
-            "confidence":    st.session_state.confidence,
-            "filled_schema": st.session_state.filled_schema,
-            "full_report":   report.get("report_data", {}),
-        }, indent=2),
-        file_name=f"aria_report_{st.session_state.case_id}.json",
-        mime="application/json",
-        use_container_width=True,
-    )
+    # === RAW DATA ===
+    with tabs[3]:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**Collected Schema**")
+            st.json(st.session_state.filled_schema)
+        with c2:
+            st.markdown("**Full Report**")
+            st.json(report)
+
+    st.divider()
+    
+    # Download options
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.download_button(
+            "⬇️ Download Complete Report (JSON)",
+            data=json.dumps({
+                "case_id":              st.session_state.case_id,
+                "crime_type":           ct,
+                "confidence":           st.session_state.confidence,
+                "filled_schema":        st.session_state.filled_schema,
+                "report":               report.get("report_data", {}),
+                "correlation_analysis": report.get("correlation_analysis"),
+                "pipeline_result":      st.session_state.pipeline_result,
+            }, indent=2, default=str),
+            file_name=f"CS3299:Capstone_Project_report_{st.session_state.case_id}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+    
+    with col2:
+        # Generate formatted report for TXT download
+        report_data = {
+            **st.session_state.filled_schema,
+            "case_id": st.session_state.case_id,
+            "report_date": st.session_state.messages[-1].get("meta", {}).get("timestamp", "N/A") if st.session_state.messages else "N/A",
+        }
+        formatted_report = generate_formatted_report(ct, report_data)
+        
+        st.download_button(
+            "⬇️ Download Official Complaint (TXT)",
+            data=formatted_report,
+            file_name=f"Complaint_Report_{st.session_state.case_id}_{ct}.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     st.set_page_config(
-        page_title="ARIA — Cybercrime Reporter",
+        page_title="CS3299:Capstone_Project — Cybercrime Reporter",
         page_icon="🛡️",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -511,31 +729,32 @@ def main():
     init_state()
     render_sidebar()
 
-    st.title("🛡️ ARIA — Cybercrime Reporting AI")
+    st.title("🛡️ CYBERCRIME REPORT GENERATION SYSTEM")
     st.caption(
-        "Describe what happened in plain language. "
-        "ARIA reads everything you say and asks the right question next — automatically."
+        "Automated incident classification and report documentation system. "
+        "For official cybercrime complaint filing with law enforcement."
     )
 
     if not st.session_state.messages:
         add_message(
             "assistant",
-            "Hello, I'm **ARIA** — your AI cybercrime reporting officer. "
-            "Please tell me what happened. Just describe it in your own words "
-            "and I'll take it from there."
+            "**CYBERCRIME REPORTING SYSTEM**\n\n"
+            "Please provide a detailed description of the cybercrime incident. "
+            "Include all relevant information such as dates, times, amounts, individuals involved, "
+            "and any communications or evidence you possess."
         )
 
     render_chat()
     render_report()
 
     if st.session_state.phase != "done":
-        user_input = st.chat_input("Describe what happened…")
+        user_input = st.chat_input("Enter incident details or response…")
         if user_input and user_input.strip():
-            with st.spinner("ARIA is reading your message…"):
+            with st.spinner("Processing report information…"):
                 handle_user_turn(user_input.strip())
             st.rerun()
     else:
-        st.info("✅ Report complete. Use **↺ New report** in the sidebar to start again.")
+        st.success("✅ CASE REPORT COMPLETED\n\nThe incident report has been generated and is ready for filing. Use **🔄 START NEW CASE** in the sidebar to process another incident.")
 
 
 if __name__ == "__main__":
