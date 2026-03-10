@@ -1,27 +1,25 @@
-# requirements.txt
-
 # Web Framework & Frontend
-streamlit==1.31.0
-requests==2.31.0
+streamlit>=1.35.0
+requests>=2.31.0
 
 # Backend API
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
 
 # AI/ML Providers
-groq==0.4.1
-together==1.0.1
-openai==1.12.0  # For OpenRouter
-cohere==4.40
+groq>=0.4.1
+together>=1.0.1
+openai>=1.12.0
+cohere>=4.40
 
 # HTTP & Utils
-httpx==0.26.0
-python-dotenv==1.0.0
-numpy==1.26.0
+httpx>=0.26.0
+python-dotenv>=1.0.0
 
-# Data Validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
+# Critical Fixes for Python 3.14 compatibility
+numpy>=2.1.0
+pydantic>=2.6.3
+pydantic-settings>=2.2.1
 
-# Vector Database
-chromadb==0.4.22  # For local vector storage (optional)
+# Vector Database (Updated for better stability)
+chromadb>=0.5.0
