@@ -1,49 +1,52 @@
-# 🛡️ CyberGuard AI Frontend - User & Developer Guide
+# 🛡️ CYBERCRIME REPORT GENERATION SYSTEM - Police Officer Guide
 
 ## Overview
 
-**CyberGuard AI** is a modern, ChatGPT-like frontend for the cyber crime reporting system. It provides an intuitive multi-layer interface that guides users through the crime classification and reporting process.
+**CYBERCRIME REPORT GENERATION SYSTEM** is a professional law enforcement tool for documenting and reporting cybercrime incidents. It provides a structured interface for systematic incident data collection, validation, and generation of official complaint forms.
 
 ### Key Features
 
-✅ **Chat-Based Interface** - Conversational, user-friendly interaction  
-✅ **Intelligent Agent Behavior** - AI guides you through the process  
-✅ **Real-Time Classification** - Analyzes incidents on-the-fly  
-✅ **Context-Aware Questions** - Asks targeted questions based on crime type  
-✅ **Professional Reports** - Generates detailed JSON crime reports  
-✅ **Report Export** - Download reports as JSON files  
-✅ **Case Management** - Track case IDs and progress  
-✅ **Multi-Layer Architecture** - Visual representation of system layers  
+✅ **Professional Data Collection** - Systematic incident documentation  
+✅ **Field Validation** - Enforces correct data format for all fields  
+✅ **Crime-Specific Forms** - Professional complaint templates (10 crime types)  
+✅ **Real-Time Validation** - Rejects invalid data and requests correction  
+✅ **Official Report Export** - Download as print-ready complaint form (TXT)  
+✅ **Structured Data Export** - Download as JSON for database storage  
+✅ **Case Management** - Track case IDs and incident status  
+✅ **Correlation Analysis** - Links to related cases and patterns  
 
 ---
 
-## Architecture Alignment
+## System Architecture
 
-The frontend is designed to implement all four layers of the system:
+The frontend is designed as a professional law enforcement workflow:
 
-### 1️⃣ **Interaction Layer**
-- Chat interface with User/Victim
-- Real-time message display
-- Case ID tracking
-- Session persistence
+### 1️⃣ **Data Collection Layer**
+- Professional incident documentation interface
+- Formal tone throughout
+- Systematic step-by-step data gathering
+- Case ID assignment and tracking
 
-### 2️⃣ **Cognitive Layer**
-- Semantic routing (determines question flow)
-- Ambiguity detection & resolution
-- Question generation
-- Intent locking (prevents mid-process type changes)
-- Dynamic schema selection
-- Report generation
+### 2️⃣ **Validation Layer**
+- Email format validation
+- Phone number validation
+- Date/time format validation
+- Financial amount validation
+- URL validation
+- Automatic rejection with format guidance
 
-### 3️⃣ **Guardrails Layer**
-- Confidence gates (shows confidence scores)
-- Input validation
-- Requirement checking
+### 3️⃣ **Processing Layer**
+- Incident type determination
+- Information completeness checking
+- Data extraction and organization
+- Correlation analysis
 
-### 4️⃣ **Expert & Learning Loop**
-- Report display with recommendations
-- Correlation analysis visualization
-- Investigation guidance
+### 4️⃣ **Report Generation Layer**
+- Crime-specific complaint form templates
+- Official format compliance
+- Text export (print-ready)
+- JSON export (database storage)
+- Case correlation and recommendations
 
 ---
 
@@ -53,6 +56,7 @@ The frontend is designed to implement all four layers of the system:
 ```bash
 # Python 3.8+
 # Backend server running on http://localhost:8000
+# Groq API Key configured
 ```
 
 ### Installation Steps
@@ -73,30 +77,76 @@ streamlit run ui.py
 
 ### Configuration
 
-**API Endpoint** (edit in `ui.py`):
+**API Endpoint** (configured in `ui.py`):
 ```python
-API_BASE_URL = "http://localhost:8000/api/v1"
-API_TIMEOUT = 30  # seconds
+API_BASE = "http://localhost:8000"
 ```
+
+**Groq API Key** - Enter in sidebar at system startup
 
 ---
 
-## User Workflow
+## Officer Workflow
 
 ### Step 1: Describe the Incident
 ```
-User: "I received a suspicious email asking me to verify my banking credentials"
+Enter initial incident description including:
+- Incident type and timing
+- Affected systems or individuals
+- Communication method (email, SMS, call, etc.)
+- Any financial impact or data loss
+- Actions already taken
 ```
-- Be as detailed as possible
-- Include dates, affected systems, financial impact
-- Mention any actions already taken
 
-### Step 2: AI Classification
+### Step 2: System Classification
 ```
-Agent: "I detected this as PHISHING (95% confidence)"
-- Email-based credential theft
-- Suspicious link/attachment present
-- Possible multi-factor bypass attempt
+System determines:
+- Crime type classification
+- Confidence level
+- Case ID assignment
+- Required information fields
+```
+
+### Step 3: Systematic Data Collection
+```
+Answer directed questions:
+- Specific dates and times
+- Contact information (email, phone, etc.)
+- Financial amounts (if applicable)
+- Transaction details (if applicable)
+- Evidence or supporting information
+```
+
+### Step 4: Data Validation
+```
+System validates each field:
+✓ Email addresses (format: user@domain.com)
+✓ Phone numbers (10+ digits)
+✓ Dates (YYYY-MM-DD or DD/MM/YYYY)
+✓ Amounts (numeric with currency)
+✓ URLs (must start with http:// or https://)
+
+If validation fails:
+✗ Data is rejected
+✗ Error message explains required format
+✗ Re-enter correct format
+```
+
+### Step 5: Report Generation
+```
+System generates:
+- Professional crime-specific complaint form
+- Official law enforcement language
+- All validated incident information
+- Chronological incident summary
+- Request section for police action
+```
+
+### Step 6: Report Export
+```
+Download options:
+1. TXT Format - Print-ready and file-ready complaint form
+2. JSON Format - Structured data for database and case management
 ```
 
 ### Step 3: Answer Clarifying Questions

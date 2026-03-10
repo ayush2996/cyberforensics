@@ -1,4 +1,4 @@
-# 🚀 CyberGuard AI Frontend - Deployment & Quick Start Guide
+# 🚀 CYBERCRIME REPORT GENERATION SYSTEM - Deployment & Setup Guide
 
 ## 🎯 5-Minute Quick Start
 
@@ -7,14 +7,16 @@
 2. **Run**: `.\start.bat` or `python startup.py`
 3. **Wait**: 10-15 seconds for services to start
 4. **Browser Opens**: Automatically on http://localhost:8501
-5. **Start Reporting**: Describe your incident!
+5. **Enter Groq API Key**: In sidebar (required for LLM)
+6. **Start Reporting**: Describe incident in professional terms
 
 ### For Linux/macOS Users
 1. **Open Terminal** in the project folder
 2. **Run**: `bash start.sh` or `python3 startup.py`
 3. **Wait**: 10-15 seconds for services to start
 4. **Open Browser**: Visit http://localhost:8501
-5. **Start Reporting**: Describe your incident!
+5. **Enter Groq API Key**: In sidebar (required for LLM)
+6. **Start Reporting**: Describe incident in professional terms
 
 ---
 
@@ -26,6 +28,7 @@
 - **Storage**: 2GB free space
 - **Python**: 3.8, 3.9, 3.10, or 3.11
 - **Ports**: 8000 (Backend), 8501 (Frontend)
+- **API Key**: Groq API Key (free from groq.com)
 
 ### Check Requirements
 ```bash
@@ -66,18 +69,20 @@ source venv/bin/activate
 ```bash
 pip install -r requirements.txt
 
-# Or install specific packages:
-pip install streamlit==1.31.0
-pip install fastapi==0.109.0
-pip install uvicorn[standard]==0.27.0
-pip install groq==0.4.1
-pip install cohere==4.40
-pip install requests==2.31.0
+# Core packages:
+# - streamlit (UI framework)
+# - fastapi + uvicorn (Backend API)
+# - groq (LLM integration)
+# - pydantic (Data validation models)
 ```
 
-### Step 4: Start the System
-```bash
-# Option 1: Automated startup (recommended)
+### Step 4: Get Groq API Key
+1. Visit https://groq.com
+2. Register for free account
+3. Get API key from console
+4. Save the key (you'll enter it in the system)
+
+### Step 5: Start the System
 python startup.py
 
 # Option 2: Windows batch script

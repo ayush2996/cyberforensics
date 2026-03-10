@@ -1,4 +1,4 @@
-# 🛡️ CyberGuard AI - Quick Reference
+# 🛡️ CYBERCRIME REPORT GENERATION SYSTEM - Quick Start
 
 ## 🚀 Start in 5 Seconds
 
@@ -22,41 +22,58 @@ bash start.sh
 
 ## 📱 What You Get
 
-### ChatGPT-Like Agent Interface
-- 💬 Natural conversation with AI agent
-- 🤖 Shows thinking animation while processing
-- 📊 Real-time classification results
-- ❓ Intelligent follow-up questions
-- 📋 Professional JSON reports
-- 📥 Download reports as files
+### Professional Law Enforcement Interface
+- 📋 Structured incident documentation
+- ✅ Real-time field validation
+- 🔍 Crime type automatic classification
+- ❓ Systematic questioning for evidence collection
+- 📄 Professional complaint form generation
+- 📥 Export as TXT (print-ready) or JSON (database storage)
 
-### Multi-Layer Architecture
+### System Workflow
 ```
-User Chat Interface (Streamlit)
+Officer Describes Incident
        ↓
-Crime Classification (AI)
+System Classifies Crime Type
        ↓
-Smart Question Generation
+Systematic Data Collection with Validation
        ↓
-Report Generation + Correlation
+Professional Complaint Form Generation
+       ↓
+Export & Case Linking
 ```
 
 ---
 
 ## ⚡ Quick Workflow
 
-1. **Describe** → "I got a suspicious email asking for banking credentials"
-2. **Agent Identifies** → "PHISHING (95% confidence)"
-3. **Agent Asks** → 5-7 targeted clarifying questions
-4. **You Answer** → Respond to all questions
-5. **Report Generated** → Professional crime report with recommendations
-6. **Export** → Download as JSON or copy to clipboard
+1. **Enter Incident** → Describe the cybercrime incident
+2. **System Classifies** → Determines crime type automatically
+3. **Answer Questions** → Respond to crime-specific data collection
+4. **System Validates** → Confirms all data in correct format
+5. **Report Generated** → Professional official complaint form
+6. **Export** → Download as TXT (print) or JSON (database)
 
 ---
 
 ## 🎯 Supported Crime Types
 
-Phishing | Ransomware | Data Breach | Identity Theft | Fraud | Malware | DDoS | Hacking | Extortion | Spam
+**Phishing** • **Ransomware** • **Data Breach** • **Identity Theft** • **Fraud** 
+**Malware** • **DDoS** • **Hacking** • **Extortion** • **Spam**
+
+---
+
+## ✅ Field Validation
+
+System validates all fields in real-time:
+
+| Field Type | Example Valid | Example Invalid |
+|-----------|---------------|-----------------|
+| Email | ayush@gmail.com | ayush |
+| Phone | +91-9876543210 | 123 |
+| Date | 2024-03-10 | tomorrow |
+| Amount | 50000 or $50,000 | lots |
+| URL | https://example.com | example.com |
 
 ---
 
@@ -66,17 +83,17 @@ Phishing | Ransomware | Data Breach | Identity Theft | Fraud | Malware | DDoS | 
 |---------|-----|
 | Frontend | http://localhost:8501 |
 | Backend API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
+| API Documentation | http://localhost:8000/docs |
 
 ---
 
 ## 📚 Documentation
 
-- **Getting Started**: FRONTEND_DEPLOYMENT_GUIDE.md
-- **User Guide**: FRONTEND_USER_GUIDE.md
+- **Detailed Guide**: FRONTEND_USER_GUIDE.md
+- **Deployment**: FRONTEND_DEPLOYMENT_GUIDE.md
 - **Architecture**: ARCHITECTURE.md
-- **API Testing**: API_TESTING_GUIDE.md
-- **Quick Start**: QUICKSTART.md
+- **Field Validation**: VALIDATION_GUIDE.md
+- **Implementation**: IMPLEMENTATION_GUIDE.md
 
 ---
 
